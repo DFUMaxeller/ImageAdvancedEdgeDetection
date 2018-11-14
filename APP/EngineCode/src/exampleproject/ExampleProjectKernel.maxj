@@ -2,24 +2,43 @@ package exampleproject;
 
 import com.maxeler.maxcompiler.v2.kernelcompiler.Kernel;
 import com.maxeler.maxcompiler.v2.kernelcompiler.KernelParameters;
-import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEType;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.core.CounterChain;
 import com.maxeler.maxcompiler.v2.kernelcompiler.types.base.DFEVar;
+import com.maxeler.maxcompiler.v2.kernelcompiler.stdlib.KernelMath;
 
 class ExampleProjectKernel extends Kernel {
-
-	private static final DFEType type = dfeInt(32);
 
 	protected ExampleProjectKernel(KernelParameters parameters) {
 		super(parameters);
 
-		DFEVar x = io.input("x", type);
-		DFEVar y = io.input("y", type);
-		DFEVar a = io.scalarInput("a", type);
+		int height = 256, width = 256;
 
-		// TODO replace with your computation
-		DFEVar sum = x + y + a;
+		DFEVar inImage = io.input("inImage", dfeInt(32));
 
-		io.output("s", sum, type);
+		DFEVar max = constant.var(0);
+		DFEVar tmp = constant.var(0);
+
+
+		for (int x = -1; x <= 1; x++) {
+			for (int y = -1; y <= 1; y++) {
+		        if(x == 0 && y == 0) {
+		            continue;
+		        }
+		        tmp = KernelMath.abs(inImage -stream.offset(inImage, x * width + y));
+
+		        max = KernelMath.max(tmp, max);
+			}
+		}
+
+		DFEVar result = max;
+		CounterChain chain = control.count.makeCounterChainMoreBits();
+		DFEVar y = chain.addCounter(height, 1);
+		DFEVar x = chain.addCounter(width, 1);
+
+		// Output 0 at the edges
+		result = ((x > 0 & x < width - 1) & (y > 0 & y < height - 1)) ? result
+			: 0;
+
+		io.output("outImage", result, result.getType());
 	}
-
 }
